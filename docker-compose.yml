@@ -1,0 +1,35 @@
+services:
+  processor:
+    build: ./processor-java
+    environment:
+      # add "mqtt" and/or "mongo" to use real infrastructure,
+      # e.g. SPRING_PROFILES_ACTIVE: "mqtt,mongo"
+      SPRING_PROFILES_ACTIVE: ""
+      MQTT_BROKER: tcp://mosquitto:1883
+      MONGO_URI: mongodb://mongo:27017/fluxmesh
+    ports:
+      - "8080:8080"
+
+  dashboard:
+    build: ./dashboard-ts
+    environment:
+      NEXT_PUBLIC_GRAPHQL_URL: http://localhost:8080/graphql
+    ports:
+      - "3000:3000"
+    depends_on:
+      - processor
+
+  # ---- optional real infrastructure: docker compose --profile infra up ----
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    profiles: ["infra"]
+    command: mosquitto -c /mosquitto-no-auth.conf
+    ports:
+      - "1883:1883"
+
+  mongo:
+    image: mongo:7
+    profiles: ["infra"]
+    ports:
+      - "27017:27017"

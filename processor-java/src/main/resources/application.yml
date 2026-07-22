@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: fluxmesh
+
+  # The default profile runs with no external services, so Mongo
+  # auto-configuration is switched off unless its profile is active.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration
+
+  graphql:
+    graphiql:
+      enabled: true          # interactive query explorer at /graphiql
+      path: /graphiql
+    schema:
+      locations: classpath:graphql/
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+fluxmesh:
+  # sliding window used for mean / stdDev / min / max
+  window-millis: 60000
+  dropout-sweep-millis: 10000
+
+  sink:
+    capacity: 2000           # in-memory alert history before the oldest is dropped
+
+  cep:
+    overheat-threshold: 100.0
+    overheat-consecutive: 3  # consecutive breaches required; 1 would be noise
+    spike-std-devs: 4.0
+    flatline-consecutive: 10
+    dropout-millis: 30000
+
+  simulator:
+    devices: 12
+    interval-millis: 250
+
+logging:
+  level:
+    com.fluxmesh: INFO
+
+---
+# Real MQTT ingest: docker compose --profile infra up
+spring:
+  config:
+    activate:
+      on-profile: mqtt
+
+fluxmesh:
+  mqtt:
+    broker: ${MQTT_BROKER:tcp://localhost:1883}
+    topic: fluxmesh/+/+/+
+
+---
+# Real MongoDB sink.
+spring:
+  config:
+    activate:
+      on-profile: mongo
+  autoconfigure:
+    exclude: []              # re-enable the Mongo auto-configuration
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/fluxmesh}

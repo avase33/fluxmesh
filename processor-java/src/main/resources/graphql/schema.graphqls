@@ -1,0 +1,75 @@
+# fluxmesh telemetry API
+#
+# GraphQL rather than REST because the clients want very different shapes of
+# the same data: a wall-board tile needs one number per device, while an
+# incident view needs the full alert history. With REST that is either several
+# endpoints or one over-fetching endpoint; here the client asks for exactly
+# what it renders.
+
+type Query {
+  "Every device, optionally filtered by site."
+  devices(site: String): [DeviceStats!]!
+
+  "Window statistics for one device and metric."
+  stats(deviceId: ID!, metric: String! = "temperature_c"): DeviceStats
+
+  "Fired alerts, newest first."
+  alerts(deviceId: ID, severity: Severity, limit: Int = 50): [Alert!]!
+
+  "Pipeline throughput and configuration."
+  pipeline: Pipeline!
+}
+
+type DeviceStats {
+  deviceId: ID!
+  site: String!
+  metric: String!
+  count: Int!
+  mean: Float!
+  min: Float!
+  max: Float!
+  stdDev: Float!
+  windowMillis: Float!
+  lastSeenTs: Float!
+  "True when the device has not reported within the dropout timeout."
+  stale: Boolean!
+}
+
+type Alert {
+  alertId: ID!
+  deviceId: ID!
+  site: String!
+  metric: String!
+  pattern: Pattern!
+  severity: Severity!
+  triggerValue: Float!
+  threshold: Float!
+  consecutiveCount: Int!
+  windowMean: Float!
+  ts: Float!
+}
+
+type Pipeline {
+  "Readings processed since start."
+  processed: Float!
+  "Alerts fired since start."
+  alertsFired: Float!
+  readingsPerSecond: Float!
+  "Number of active (deviceId, metric) state partitions."
+  activeKeys: Int!
+  sink: String!
+  windowMillis: Float!
+}
+
+enum Pattern {
+  OVERHEAT
+  SPIKE
+  FLATLINE
+  DROPOUT
+}
+
+enum Severity {
+  INFO
+  WARNING
+  CRITICAL
+}
